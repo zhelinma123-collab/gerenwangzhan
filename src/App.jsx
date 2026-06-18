@@ -3,6 +3,8 @@ import BorderGlow from './BorderGlow'
 import GradientText from './GradientText'
 import SoftAurora from './SoftAurora'
 
+const assetPath = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`
+
 const profile = {
   name: '马哲林',
   title: '动态设计师 / AI 设计师',
@@ -20,7 +22,7 @@ const projects = [
     label: '01',
     description: '将 AI 图像、视频生成与后期合成整合为完整影像流程，用于概念片、品牌短片和视觉提案。',
     palette: 'project-a',
-    video: '/project-ai-video.mp4',
+    video: assetPath('/project-ai-video.mp4'),
   },
   {
     title: '品牌演绎',
@@ -28,7 +30,7 @@ const projects = [
     label: '02',
     description: '围绕品牌气质建立动态语言，将标识、字体、版式和转场演绎为可复用的传播资产。',
     palette: 'project-b',
-    video: '/project-brand-video.mp4',
+    video: assetPath('/project-brand-video.mp4'),
   },
   {
     title: '粒子动态',
@@ -36,7 +38,7 @@ const projects = [
     label: '03',
     description: '通过粒子、流体、光线和空间节奏构建动态视觉，用于开场、舞台屏幕和氛围短片。',
     palette: 'project-c',
-    video: '/project-particle-video.m4v',
+    video: assetPath('/project-particle-video.m4v'),
   },
   {
     title: '科技包装',
@@ -44,7 +46,7 @@ const projects = [
     label: '04',
     description: '为科技产品和数字内容设计包装视觉，强化材质、结构、镜头运动与信息层级。',
     palette: 'project-d',
-    video: '/project-tech-video.mp4',
+    video: assetPath('/project-tech-video.mp4'),
   },
   {
     title: '其他影像',
@@ -52,7 +54,7 @@ const projects = [
     label: '05',
     description: '承接更多影像方向的探索与制作，包括实验片、活动开场、社媒内容和跨媒介视觉。',
     palette: 'project-e',
-    video: '/project-other-video.mp4',
+    video: assetPath('/project-other-video.mp4'),
   },
 ]
 
@@ -91,13 +93,13 @@ const socialItems = [
     id: 'wechat',
     label: '微信',
     value: profile.wechat,
-    qrSrc: '/wechat-qrcode.png',
+    qrSrc: assetPath('/wechat-qrcode.png'),
   },
   {
     id: 'qq',
     label: 'QQ',
     value: profile.qq,
-    qrSrc: '/qq-qrcode.png',
+    qrSrc: assetPath('/qq-qrcode.png'),
   },
 ]
 
@@ -411,13 +413,13 @@ function App() {
             onClick={handleVideoClick}
             onDoubleClick={handleVideoDoubleClick}
           >
-            <source src="/hero-video.mp4" type="video/mp4" />
+            <source src={assetPath('/hero-video.mp4')} type="video/mp4" />
           </video>
           <span className="light-field" />
         </div>
 
         <OrnamentLayer variant="hero" />
-        <img className="hero-mark" src="/mzl-logo-white.png" alt="马哲林标识" />
+        <img className="hero-mark" src={assetPath('/mzl-logo-white.png')} alt="马哲林标识" />
 
         <nav className="nav" aria-label="主导航">
           <button className="nav-trigger" type="button" aria-label="打开导航菜单">
