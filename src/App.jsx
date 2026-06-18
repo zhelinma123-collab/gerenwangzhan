@@ -382,6 +382,44 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const projectVideos = Array.from(document.querySelectorAll('.project-video'))
+
+    const loadVideo = (video) => {
+      if (!video.dataset.src || video.src) {
+        return
+      }
+
+      video.src = video.dataset.src
+      video.load()
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const video = entry.target
+
+          if (entry.isIntersecting) {
+            loadVideo(video)
+            video.play().catch(() => {})
+          } else {
+            video.pause()
+          }
+        })
+      },
+      {
+        threshold: 0.28,
+        rootMargin: '260px 0px 260px 0px',
+      },
+    )
+
+    projectVideos.forEach((video) => observer.observe(video))
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
     if (!activeQr) {
       return undefined
     }
@@ -464,16 +502,14 @@ function App() {
                 {project.video && (
                   <video
                     className="project-video"
-                    autoPlay
                     muted
                     loop
                     playsInline
-                    preload="metadata"
+                    preload="none"
+                    data-src={project.video}
                     onClick={handleVideoClick}
                     onDoubleClick={handleVideoDoubleClick}
-                  >
-                    <source src={project.video} type="video/mp4" />
-                  </video>
+                  />
                 )}
                 <span />
               </div>
