@@ -1,6 +1,8 @@
 node_modules/
 dist/
 video-originals/
+cdn-video/
+public/full/
 public/contact-bg.webm
 .env
 .env.local

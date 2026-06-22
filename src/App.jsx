@@ -4,6 +4,8 @@ import GradientText from './GradientText'
 import SoftAurora from './SoftAurora'
 
 const assetPath = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`
+const videoCdnBase = import.meta.env.VITE_VIDEO_CDN_BASE?.replace(/\/+$/, '') ?? ''
+const videoPath = (path) => (videoCdnBase ? `${videoCdnBase}/${path.replace(/^\/+/, '')}` : '')
 
 const profile = {
   name: '马哲林',
@@ -23,6 +25,8 @@ const projects = [
     description: '将 AI 图像、视频生成与后期合成整合为完整影像流程，用于概念片、品牌短片和视觉提案。',
     palette: 'project-a',
     poster: assetPath('/project-ai-poster.jpg'),
+    preview: assetPath('/previews/project-ai-preview.mp4'),
+    hls: videoPath('/hls/project-ai/master.m3u8'),
     video: assetPath('/project-ai-video.mp4'),
   },
   {
@@ -32,6 +36,8 @@ const projects = [
     description: '围绕品牌气质建立动态语言，将标识、字体、版式和转场演绎为可复用的传播资产。',
     palette: 'project-b',
     poster: assetPath('/project-brand-poster.jpg'),
+    preview: assetPath('/previews/project-brand-preview.mp4'),
+    hls: videoPath('/hls/project-brand/master.m3u8'),
     video: assetPath('/project-brand-video.mp4'),
   },
   {
@@ -41,6 +47,8 @@ const projects = [
     description: '通过粒子、流体、光线和空间节奏构建动态视觉，用于开场、舞台屏幕和氛围短片。',
     palette: 'project-c',
     poster: assetPath('/project-particle-poster.jpg'),
+    preview: assetPath('/previews/project-particle-preview.mp4'),
+    hls: videoPath('/hls/project-particle/master.m3u8'),
     video: assetPath('/project-particle-video.m4v'),
   },
   {
@@ -50,6 +58,8 @@ const projects = [
     description: '为科技产品和数字内容设计包装视觉，强化材质、结构、镜头运动与信息层级。',
     palette: 'project-d',
     poster: assetPath('/project-tech-poster.jpg'),
+    preview: assetPath('/previews/project-tech-preview.mp4'),
+    hls: videoPath('/hls/project-tech/master.m3u8'),
     video: assetPath('/project-tech-video.mp4'),
   },
   {
@@ -59,6 +69,8 @@ const projects = [
     description: '承接更多影像方向的探索与制作，包括实验片、活动开场、社媒内容和跨媒介视觉。',
     palette: 'project-e',
     poster: assetPath('/project-other-poster.jpg'),
+    preview: assetPath('/previews/project-other-preview.mp4'),
+    hls: videoPath('/hls/project-other/master.m3u8'),
     video: assetPath('/project-other-video.mp4'),
   },
 ]
@@ -263,6 +275,91 @@ function OrnamentLayer({ variant = 'dark' }) {
       <span className="ornament-label ornament-label-left">{copy.left}</span>
       <span className="ornament-label ornament-label-right">{copy.right}</span>
       <span className="ornament-note">{copy.note}</span>
+    </div>
+  )
+}
+
+function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
+  const videoRef = useRef(null)
+
+  useEffect(() => {
+    const video = videoRef.current
+
+    if (!video) {
+      return undefined
+    }
+
+    let hls
+    let disposed = false
+    const playVideo = () => {
+      video.play().catch(() => {})
+    }
+
+    if (project.hls && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = project.hls
+      playVideo()
+    } else if (project.hls) {
+      import('hls.js')
+        .then(({ default: Hls }) => {
+          if (disposed) {
+            return
+          }
+
+          if (!Hls.isSupported()) {
+            video.src = project.video
+            playVideo()
+            return
+          }
+
+          hls = new Hls({
+            capLevelToPlayerSize: true,
+            startLevel: -1,
+          })
+          hls.loadSource(project.hls)
+          hls.attachMedia(video)
+          playVideo()
+        })
+        .catch(() => {
+          if (!disposed) {
+            video.src = project.video
+            playVideo()
+          }
+        })
+    } else {
+      video.src = project.video
+      playVideo()
+    }
+
+    return () => {
+      disposed = true
+      hls?.destroy()
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
+    }
+  }, [project])
+
+  return (
+    <div className="project-player-modal" role="dialog" aria-modal="true" aria-label={`${project.title} video player`}>
+      <button className="project-player-backdrop" type="button" aria-label="Close video player" onClick={onClose} />
+      <div className="project-player-panel">
+        <button className="project-player-close" type="button" aria-label="Close video player" onClick={onClose}>
+          ×
+        </button>
+        <video
+          ref={videoRef}
+          className="project-player-video"
+          poster={project.poster}
+          controls
+          playsInline
+          onClick={onVideoClick}
+          onDoubleClick={onVideoDoubleClick}
+        />
+        <div className="project-player-meta">
+          <span>{project.label}</span>
+          <strong>{project.title}</strong>
+        </div>
+      </div>
     </div>
   )
 }
@@ -559,7 +656,7 @@ function App() {
                     playsInline
                     preload="none"
                     poster={project.poster}
-                    data-src={project.video}
+                    data-src={project.preview || project.video}
                   />
                 )}
                 <button
@@ -709,38 +806,12 @@ function App() {
       </section>
 
       {activeProject && (
-        <div className="project-player-modal" role="dialog" aria-modal="true" aria-label={`${activeProject.title} video player`}>
-          <button
-            className="project-player-backdrop"
-            type="button"
-            aria-label="Close video player"
-            onClick={() => setActiveProject(null)}
-          />
-          <div className="project-player-panel">
-            <button
-              className="project-player-close"
-              type="button"
-              aria-label="Close video player"
-              onClick={() => setActiveProject(null)}
-            >
-              ×
-            </button>
-            <video
-              className="project-player-video"
-              src={activeProject.video}
-              poster={activeProject.poster}
-              controls
-              autoPlay
-              playsInline
-              onClick={handleVideoClick}
-              onDoubleClick={handleVideoDoubleClick}
-            />
-            <div className="project-player-meta">
-              <span>{activeProject.label}</span>
-              <strong>{activeProject.title}</strong>
-            </div>
-          </div>
-        </div>
+        <ProjectPlayer
+          project={activeProject}
+          onClose={() => setActiveProject(null)}
+          onVideoClick={handleVideoClick}
+          onVideoDoubleClick={handleVideoDoubleClick}
+        />
       )}
     </main>
   )
