@@ -6,6 +6,7 @@ import SoftAurora from './SoftAurora'
 const assetPath = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`
 const videoCdnBase = import.meta.env.VITE_VIDEO_CDN_BASE?.replace(/\/+$/, '') ?? ''
 const videoPath = (path) => (videoCdnBase ? `${videoCdnBase}/${path.replace(/^\/+/, '')}` : '')
+const heroHls = videoPath('/hls/hero/master.m3u8')
 
 const profile = {
   name: '马哲林',
@@ -279,7 +280,7 @@ function OrnamentLayer({ variant = 'dark' }) {
   )
 }
 
-function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
+function HlsVideo({ hls: hlsSrc, fallback, autoPlay = false, className, poster, controls = false, muted = false, loop = false, onClick, onDoubleClick }) {
   const videoRef = useRef(null)
 
   useEffect(() => {
@@ -289,16 +290,18 @@ function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
       return undefined
     }
 
-    let hls
+    let hlsInstance
     let disposed = false
     const playVideo = () => {
-      video.play().catch(() => {})
+      if (autoPlay) {
+        video.play().catch(() => {})
+      }
     }
 
-    if (project.hls && video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = project.hls
+    if (hlsSrc && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = hlsSrc
       playVideo()
-    } else if (project.hls) {
+    } else if (hlsSrc) {
       import('hls.js')
         .then(({ default: Hls }) => {
           if (disposed) {
@@ -306,38 +309,57 @@ function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
           }
 
           if (!Hls.isSupported()) {
-            video.src = project.video
+            video.src = fallback
             playVideo()
             return
           }
 
-          hls = new Hls({
+          hlsInstance = new Hls({
             capLevelToPlayerSize: true,
             startLevel: -1,
           })
-          hls.loadSource(project.hls)
-          hls.attachMedia(video)
+          hlsInstance.loadSource(hlsSrc)
+          hlsInstance.attachMedia(video)
           playVideo()
         })
         .catch(() => {
           if (!disposed) {
-            video.src = project.video
+            video.src = fallback
             playVideo()
           }
         })
     } else {
-      video.src = project.video
+      video.src = fallback
       playVideo()
     }
 
     return () => {
       disposed = true
-      hls?.destroy()
+      hlsInstance?.destroy()
       video.pause()
       video.removeAttribute('src')
       video.load()
     }
-  }, [project])
+  }, [autoPlay, fallback, hlsSrc])
+
+  return (
+    <video
+      ref={videoRef}
+      className={className}
+      poster={poster}
+      controls={controls}
+      autoPlay={autoPlay}
+      muted={muted}
+      loop={loop}
+      playsInline
+      preload="metadata"
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+    />
+  )
+}
+
+function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
 
   return (
     <div className="project-player-modal" role="dialog" aria-modal="true" aria-label={`${project.title} video player`}>
@@ -346,12 +368,13 @@ function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
         <button className="project-player-close" type="button" aria-label="Close video player" onClick={onClose}>
           ×
         </button>
-        <video
-          ref={videoRef}
+        <HlsVideo
           className="project-player-video"
+          hls={project.hls}
+          fallback={project.video}
           poster={project.poster}
           controls
-          playsInline
+          autoPlay
           onClick={onVideoClick}
           onDoubleClick={onVideoDoubleClick}
         />
@@ -585,18 +608,16 @@ function App() {
     <main className="site-shell">
       <section className="hero" id="home" aria-label="首页">
         <div className="hero-media" aria-hidden="true">
-          <video
+          <HlsVideo
             className="hero-video"
+            hls={heroHls}
+            fallback={assetPath('/hero-video.mp4')}
             autoPlay
             muted
             loop
-            playsInline
-            preload="metadata"
             onClick={handleVideoClick}
             onDoubleClick={handleVideoDoubleClick}
-          >
-            <source src={assetPath('/hero-video.mp4')} type="video/mp4" />
-          </video>
+          />
           <span className="light-field" />
         </div>
 

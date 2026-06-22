@@ -19,6 +19,7 @@ cdn-video/hls/
 
 ```text
 hls/project-ai/master.m3u8
+hls/hero/master.m3u8
 hls/project-brand/master.m3u8
 hls/project-particle/master.m3u8
 hls/project-tech/master.m3u8
@@ -100,6 +101,7 @@ VITE_VIDEO_CDN_BASE=https://你的OSS或CDN域名
 
 ```text
 ${VITE_VIDEO_CDN_BASE}/hls/project-ai/master.m3u8
+${VITE_VIDEO_CDN_BASE}/hls/hero/master.m3u8
 ```
 
 ## 6. 重新生成 HLS

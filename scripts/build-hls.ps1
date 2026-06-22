@@ -17,6 +17,7 @@ if (-not $ffmpegPath) {
 }
 
 $items = @(
+  @{ Key = "hero"; Source = "cdn-video\full\hero-hd.mp4" },
   @{ Key = "project-ai"; Source = "cdn-video\full\project-ai-hd.mp4" },
   @{ Key = "project-brand"; Source = "cdn-video\full\project-brand-hd.mp4" },
   @{ Key = "project-particle"; Source = "cdn-video\full\project-particle-hd.mp4" },
