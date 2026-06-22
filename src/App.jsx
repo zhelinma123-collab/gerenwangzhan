@@ -6,7 +6,7 @@ import SoftAurora from './SoftAurora'
 const assetPath = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`
 const videoCdnBase = import.meta.env.VITE_VIDEO_CDN_BASE?.replace(/\/+$/, '') ?? ''
 const videoPath = (path) => (videoCdnBase ? `${videoCdnBase}/${path.replace(/^\/+/, '')}` : '')
-const heroHls = videoPath('/hls/hero/master.m3u8')
+const heroHls = videoPath('/hls/hero/v720p/index.m3u8')
 
 const profile = {
   name: '马哲林',

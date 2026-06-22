@@ -19,7 +19,11 @@ cdn-video/hls/
 
 ```text
 hls/project-ai/master.m3u8
+hls/project-ai/v480p/index.m3u8
+hls/project-ai/v720p/index.m3u8
+hls/project-ai/v1080p/index.m3u8
 hls/hero/master.m3u8
+hls/hero/v720p/index.m3u8
 hls/project-brand/master.m3u8
 hls/project-particle/master.m3u8
 hls/project-tech/master.m3u8
