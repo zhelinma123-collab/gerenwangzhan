@@ -22,6 +22,7 @@ const projects = [
     label: '01',
     description: '将 AI 图像、视频生成与后期合成整合为完整影像流程，用于概念片、品牌短片和视觉提案。',
     palette: 'project-a',
+    poster: assetPath('/project-ai-poster.jpg'),
     video: assetPath('/project-ai-video.mp4'),
   },
   {
@@ -30,6 +31,7 @@ const projects = [
     label: '02',
     description: '围绕品牌气质建立动态语言，将标识、字体、版式和转场演绎为可复用的传播资产。',
     palette: 'project-b',
+    poster: assetPath('/project-brand-poster.jpg'),
     video: assetPath('/project-brand-video.mp4'),
   },
   {
@@ -38,6 +40,7 @@ const projects = [
     label: '03',
     description: '通过粒子、流体、光线和空间节奏构建动态视觉，用于开场、舞台屏幕和氛围短片。',
     palette: 'project-c',
+    poster: assetPath('/project-particle-poster.jpg'),
     video: assetPath('/project-particle-video.m4v'),
   },
   {
@@ -46,6 +49,7 @@ const projects = [
     label: '04',
     description: '为科技产品和数字内容设计包装视觉，强化材质、结构、镜头运动与信息层级。',
     palette: 'project-d',
+    poster: assetPath('/project-tech-poster.jpg'),
     video: assetPath('/project-tech-video.mp4'),
   },
   {
@@ -54,6 +58,7 @@ const projects = [
     label: '05',
     description: '承接更多影像方向的探索与制作，包括实验片、活动开场、社媒内容和跨媒介视觉。',
     palette: 'project-e',
+    poster: assetPath('/project-other-poster.jpg'),
     video: assetPath('/project-other-video.mp4'),
   },
 ]
@@ -264,8 +269,38 @@ function OrnamentLayer({ variant = 'dark' }) {
 
 function App() {
   const [activeQr, setActiveQr] = useState(null)
+  const [activeProject, setActiveProject] = useState(null)
   const videoClickTimer = useRef(null)
   const activeSocial = socialItems.find((item) => item.id === activeQr)
+
+  const loadProjectPreview = (video) => {
+    if (!video?.dataset.src || video.src) {
+      return
+    }
+
+    video.src = video.dataset.src
+    video.load()
+  }
+
+  const playProjectPreview = (video) => {
+    loadProjectPreview(video)
+    video?.classList.add('is-preview-active')
+    video?.play().catch(() => {})
+  }
+
+  const pauseProjectPreview = (video) => {
+    video?.pause()
+  }
+
+  const handleProjectPreviewEnter = (event) => {
+    const video = event.currentTarget.querySelector('.project-video')
+    playProjectPreview(video)
+  }
+
+  const handleProjectPreviewLeave = (event) => {
+    const video = event.currentTarget.querySelector('.project-video')
+    pauseProjectPreview(video)
+  }
 
   const toggleVideoPlayback = (video) => {
     if (video.paused) {
@@ -384,25 +419,15 @@ function App() {
   useEffect(() => {
     const projectVideos = Array.from(document.querySelectorAll('.project-video'))
 
-    const loadVideo = (video) => {
-      if (!video.dataset.src || video.src) {
-        return
-      }
-
-      video.src = video.dataset.src
-      video.load()
-    }
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           const video = entry.target
 
           if (entry.isIntersecting) {
-            loadVideo(video)
-            video.play().catch(() => {})
+            loadProjectPreview(video)
           } else {
-            video.pause()
+            pauseProjectPreview(video)
           }
         })
       },
@@ -436,6 +461,28 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [activeQr])
+
+  useEffect(() => {
+    if (!activeProject) {
+      return undefined
+    }
+
+    const previousOverflow = document.body.style.overflow
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActiveProject(null)
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeProject])
 
   return (
     <main className="site-shell">
@@ -498,7 +545,12 @@ function App() {
         <div className="project-board">
           {projects.map((project) => (
             <article className="project-row" key={project.title}>
-              <div className={`project-image ${project.palette}`} aria-hidden="true">
+              <div
+                className={`project-image ${project.palette}`}
+                onPointerEnter={handleProjectPreviewEnter}
+                onPointerLeave={handleProjectPreviewLeave}
+              >
+                {project.poster && <img className="project-poster" src={project.poster} alt="" loading="lazy" />}
                 {project.video && (
                   <video
                     className="project-video"
@@ -506,11 +558,16 @@ function App() {
                     loop
                     playsInline
                     preload="none"
+                    poster={project.poster}
                     data-src={project.video}
-                    onClick={handleVideoClick}
-                    onDoubleClick={handleVideoDoubleClick}
                   />
                 )}
+                <button
+                  className="project-play-surface"
+                  type="button"
+                  onClick={() => setActiveProject(project)}
+                  aria-label={`播放${project.title}完整视频`}
+                />
                 <span />
               </div>
               <div className="project-copy">
@@ -650,6 +707,41 @@ function App() {
           </div>
         )}
       </section>
+
+      {activeProject && (
+        <div className="project-player-modal" role="dialog" aria-modal="true" aria-label={`${activeProject.title} video player`}>
+          <button
+            className="project-player-backdrop"
+            type="button"
+            aria-label="Close video player"
+            onClick={() => setActiveProject(null)}
+          />
+          <div className="project-player-panel">
+            <button
+              className="project-player-close"
+              type="button"
+              aria-label="Close video player"
+              onClick={() => setActiveProject(null)}
+            >
+              ×
+            </button>
+            <video
+              className="project-player-video"
+              src={activeProject.video}
+              poster={activeProject.poster}
+              controls
+              autoPlay
+              playsInline
+              onClick={handleVideoClick}
+              onDoubleClick={handleVideoDoubleClick}
+            />
+            <div className="project-player-meta">
+              <span>{activeProject.label}</span>
+              <strong>{activeProject.title}</strong>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
