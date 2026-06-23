@@ -280,8 +280,21 @@ function OrnamentLayer({ variant = 'dark' }) {
   )
 }
 
-function HlsVideo({ hls: hlsSrc, fallback, autoPlay = false, className, poster, controls = false, muted = false, loop = false, onClick, onDoubleClick }) {
+function HlsVideo({
+  hls: hlsSrc,
+  fallback,
+  autoPlay = false,
+  className,
+  poster,
+  controls = false,
+  muted = false,
+  loop = false,
+  onClick,
+  onDoubleClick,
+  showFallbackMessage = false,
+}) {
   const videoRef = useRef(null)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     const video = videoRef.current
@@ -292,6 +305,7 @@ function HlsVideo({ hls: hlsSrc, fallback, autoPlay = false, className, poster, 
 
     let hlsInstance
     let disposed = false
+    setLoadError(false)
     const playVideo = () => {
       if (autoPlay) {
         video.play().catch(() => {})
@@ -325,6 +339,7 @@ function HlsVideo({ hls: hlsSrc, fallback, autoPlay = false, className, poster, 
         .catch(() => {
           if (!disposed) {
             video.src = fallback
+            setLoadError(false)
             playVideo()
           }
         })
@@ -343,29 +358,69 @@ function HlsVideo({ hls: hlsSrc, fallback, autoPlay = false, className, poster, 
   }, [autoPlay, fallback, hlsSrc])
 
   return (
-    <video
-      ref={videoRef}
-      className={className}
-      poster={poster}
-      controls={controls}
-      autoPlay={autoPlay}
-      muted={muted}
-      loop={loop}
-      playsInline
-      preload="metadata"
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
-    />
+    <>
+      <video
+        ref={videoRef}
+        className={className}
+        poster={poster}
+        controls={controls}
+        autoPlay={autoPlay}
+        muted={muted}
+        loop={loop}
+        playsInline
+        preload="metadata"
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        onError={() => setLoadError(true)}
+      />
+      {showFallbackMessage && loadError && fallback && (
+        <a className="video-fallback-link" href={fallback} target="_blank" rel="noreferrer">
+          视频加载失败，打开备用 MP4
+        </a>
+      )}
+    </>
   )
 }
 
+
+function trapDialogFocus(event, container) {
+  if (event.key !== 'Tab' || !container) {
+    return
+  }
+
+  const focusable = Array.from(
+    container.querySelectorAll('a[href], button:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])'),
+  ).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true')
+
+  if (!focusable.length) {
+    return
+  }
+
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
 function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
+  const closeRef = useRef(null)
+  const panelRef = useRef(null)
+
+  useEffect(() => {
+    closeRef.current?.focus()
+  }, [])
 
   return (
-    <div className="project-player-modal" role="dialog" aria-modal="true" aria-label={`${project.title} video player`}>
+    <div className="project-player-modal" role="dialog" aria-modal="true" aria-label={`播放${project.title}完整视频`}>
       <button className="project-player-backdrop" type="button" aria-label="Close video player" onClick={onClose} />
-      <div className="project-player-panel">
-        <button className="project-player-close" type="button" aria-label="Close video player" onClick={onClose}>
+      <div ref={panelRef} className="project-player-panel" onKeyDown={(event) => trapDialogFocus(event, panelRef.current)}>
+        <button ref={closeRef} className="project-player-close" type="button" aria-label="Close video player" onClick={onClose}>
           ×
         </button>
         <HlsVideo
@@ -377,6 +432,7 @@ function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
           autoPlay
           onClick={onVideoClick}
           onDoubleClick={onVideoDoubleClick}
+          showFallbackMessage
         />
         <div className="project-player-meta">
           <span>{project.label}</span>
@@ -390,8 +446,40 @@ function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
 function App() {
   const [activeQr, setActiveQr] = useState(null)
   const [activeProject, setActiveProject] = useState(null)
+  const [navOpen, setNavOpen] = useState(false)
   const videoClickTimer = useRef(null)
+  const navRef = useRef(null)
+  const navButtonRef = useRef(null)
+  const qrCloseRef = useRef(null)
+  const qrPanelRef = useRef(null)
+  const returnFocusRef = useRef(null)
   const activeSocial = socialItems.find((item) => item.id === activeQr)
+
+  const closeNav = () => {
+    setNavOpen(false)
+  }
+
+  const handleNavLinkClick = () => {
+    closeNav()
+  }
+
+  const openProject = (project, event) => {
+    returnFocusRef.current = event.currentTarget
+    setActiveProject(project)
+  }
+
+  const openQr = (id, event) => {
+    returnFocusRef.current = event.currentTarget
+    setActiveQr(id)
+  }
+
+  const closeQr = () => {
+    setActiveQr(null)
+  }
+
+  const closeProject = () => {
+    setActiveProject(null)
+  }
 
   const loadProjectPreview = (video) => {
     if (!video?.dataset.src || video.src) {
@@ -569,9 +657,11 @@ function App() {
       return undefined
     }
 
+    qrCloseRef.current?.focus()
+
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        setActiveQr(null)
+        closeQr()
       }
     }
 
@@ -579,6 +669,7 @@ function App() {
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
+      returnFocusRef.current?.focus?.()
     }
   }, [activeQr])
 
@@ -591,7 +682,7 @@ function App() {
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        setActiveProject(null)
+        closeProject()
       }
     }
 
@@ -601,8 +692,36 @@ function App() {
     return () => {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
+      returnFocusRef.current?.focus?.()
     }
   }, [activeProject])
+
+  useEffect(() => {
+    if (!navOpen) {
+      return undefined
+    }
+
+    const handlePointerDown = (event) => {
+      if (!navRef.current?.contains(event.target)) {
+        closeNav()
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeNav()
+        navButtonRef.current?.focus()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [navOpen])
 
   return (
     <main className="site-shell">
@@ -624,29 +743,50 @@ function App() {
         <OrnamentLayer variant="hero" />
         <img className="hero-mark" src={assetPath('/mzl-logo-white.png')} alt="马哲林标识" />
 
-        <nav className="nav" aria-label="主导航">
-          <button className="nav-trigger" type="button" aria-label="打开导航菜单">
+        <nav ref={navRef} className={`nav ${navOpen ? 'is-open' : ''}`} aria-label="主导航">
+          <button
+            ref={navButtonRef}
+            className="nav-trigger"
+            type="button"
+            aria-label={navOpen ? '关闭导航菜单' : '打开导航菜单'}
+            aria-expanded={navOpen}
+            aria-controls="primary-navigation"
+            onClick={() => setNavOpen((open) => !open)}
+          >
             <span aria-hidden="true" />
             <span aria-hidden="true" />
             <span aria-hidden="true" />
           </button>
-          <div className="nav-panel">
-            <a className="brand" href="#home">
+          <div className="nav-panel" id="primary-navigation">
+            <a className="brand" href="#home" onClick={handleNavLinkClick}>
               {profile.name}
               <span>{profile.title}</span>
             </a>
             <div className="nav-links">
-              <a href="#projects">项目</a>
-              <a href="#experience">优势</a>
-              <a href="#strengths">经历</a>
-              <a href="#contact">联系</a>
+              <a href="#projects" onClick={handleNavLinkClick}>项目</a>
+              <a href="#experience" onClick={handleNavLinkClick}>能力</a>
+              <a href="#strengths" onClick={handleNavLinkClick}>经历</a>
+              <a href="#contact" onClick={handleNavLinkClick}>联系</a>
             </div>
           </div>
         </nav>
 
         <div className="hero-grid">
           <div className="hero-copy">
+            <div className="hero-index" aria-hidden="true">
+              <span>
+                MOTION DESIGNER
+                <br />/ AI DESIGNER
+              </span>
+            </div>
+            <h1 className="hero-title">
+              动态设计师
+              <span>/ AI 设计师</span>
+            </h1>
+            <span className="hero-orb" aria-hidden="true" />
+            <p className="hero-name">马哲林 <span aria-hidden="true">✦</span></p>
             <p className="kicker">生成式影像 / 品牌动效 / 数字内容</p>
+            <p className="hero-subline">GENERATIVE IMAGERY / BRAND MOTION / DIGITAL CONTENT</p>
             <div className="hero-actions">
               <a href="#projects">查看精选项目</a>
             </div>
@@ -665,8 +805,6 @@ function App() {
             <article className="project-row" key={project.title}>
               <div
                 className={`project-image ${project.palette}`}
-                onPointerEnter={handleProjectPreviewEnter}
-                onPointerLeave={handleProjectPreviewLeave}
               >
                 {project.poster && <img className="project-poster" src={project.poster} alt="" loading="lazy" />}
                 {project.video && (
@@ -683,9 +821,13 @@ function App() {
                 <button
                   className="project-play-surface"
                   type="button"
-                  onClick={() => setActiveProject(project)}
+                  onClick={(event) => openProject(project, event)}
                   aria-label={`播放${project.title}完整视频`}
-                />
+                >
+                  <span className="project-play-indicator" aria-hidden="true">
+                    <span className="project-play-icon" />
+                  </span>
+                </button>
                 <span />
               </div>
               <div className="project-copy">
@@ -715,12 +857,12 @@ function App() {
         <OrnamentLayer variant="experience" />
         <div className="experience-inner">
           <div className="release-heading">
-            <h2>个人优势</h2>
+            <h2>个人能力</h2>
             <span aria-hidden="true" />
             <p>持续积累视觉、动态与智能生成能力</p>
           </div>
 
-          <div className="release-timeline" aria-label="个人经历时间轴">
+          <div className="release-timeline" aria-label="个人能力时间线">
             {experienceItems.map((item) => (
               <article className="release-card" key={item.year}>
                 <div className="release-date">{item.year}</div>
@@ -801,7 +943,7 @@ function App() {
             <span className="contact-label">社交媒体</span>
             <div className="social-actions" aria-label="社交媒体二维码">
               {socialItems.map((item) => (
-                <button className="social-button" type="button" key={item.id} onClick={() => setActiveQr(item.id)}>
+                <button className="social-button" type="button" key={item.id} onClick={(event) => openQr(item.id, event)}>
                   <SocialIcon type={item.id} />
                   <span>{item.label}</span>
                 </button>
@@ -811,9 +953,9 @@ function App() {
         </div>
         {activeSocial && (
           <div className="qr-modal" role="dialog" aria-modal="true" aria-label={`${activeSocial.label}二维码`}>
-            <button className="qr-modal-backdrop" type="button" aria-label="关闭二维码" onClick={() => setActiveQr(null)} />
-            <div className="qr-panel">
-              <button className="qr-close" type="button" aria-label="关闭二维码" onClick={() => setActiveQr(null)}>
+            <button className="qr-modal-backdrop" type="button" aria-label="关闭二维码" onClick={closeQr} />
+            <div ref={qrPanelRef} className="qr-panel" onKeyDown={(event) => trapDialogFocus(event, qrPanelRef.current)}>
+              <button ref={qrCloseRef} className="qr-close" type="button" aria-label="关闭二维码" onClick={closeQr}>
                 ×
               </button>
               <img className="qr-art" src={activeSocial.qrSrc} alt={`${activeSocial.label}二维码`} />
@@ -829,7 +971,7 @@ function App() {
       {activeProject && (
         <ProjectPlayer
           project={activeProject}
-          onClose={() => setActiveProject(null)}
+          onClose={closeProject}
           onVideoClick={handleVideoClick}
           onVideoDoubleClick={handleVideoDoubleClick}
         />
