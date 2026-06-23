@@ -2649,6 +2649,21 @@ button:focus-visible {
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.75));
 }
 
+/* Remove the translucent base halo under the primary hero button. */
+.hero-actions a {
+  box-shadow:
+    0 14px 34px rgba(91, 66, 214, 0.3),
+    inset 0 2px 8px rgba(255, 255, 255, 0.42),
+    inset 0 -18px 28px rgba(40, 16, 124, 0.24);
+}
+
+.hero-actions a:hover {
+  box-shadow:
+    0 16px 38px rgba(91, 66, 214, 0.36),
+    inset 0 2px 9px rgba(255, 255, 255, 0.48),
+    inset 0 -18px 28px rgba(40, 16, 124, 0.24);
+}
+
 .contact-bg .soft-aurora-container::before,
 .contact-bg .soft-aurora-container::after,
 .contact-bg .soft-aurora-container span {
