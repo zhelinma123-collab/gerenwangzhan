@@ -2128,6 +2128,14 @@ button:focus-visible {
   background: #020304;
 }
 
+.projects,
+.experience,
+.strengths,
+.contact-finale {
+  content-visibility: auto;
+  contain-intrinsic-size: 900px;
+}
+
 .contact-bg {
   position: absolute;
   inset: 0;
@@ -2242,6 +2250,23 @@ button:focus-visible {
   .soft-aurora-container::after,
   .soft-aurora-container span {
     animation: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .contact-bg .soft-aurora-container canvas {
+    display: none;
+  }
+
+  .contact-bg .soft-aurora-container::before,
+  .contact-bg .soft-aurora-container::after,
+  .contact-bg .soft-aurora-container span {
+    animation: none;
+    filter: blur(18px);
+  }
+
+  .contact-finale .ornament-layer {
+    display: none;
   }
 }
 

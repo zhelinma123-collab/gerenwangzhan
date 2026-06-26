@@ -165,9 +165,21 @@ export default function SoftAurora({
     if (!containerRef.current) return undefined
 
     const container = containerRef.current
-    const renderer = new Renderer({ alpha: true, premultipliedAlpha: false })
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const mobileViewport = window.matchMedia('(max-width: 760px)').matches
+
+    if (reducedMotion || mobileViewport) {
+      return undefined
+    }
+
+    const renderer = new Renderer({
+      alpha: true,
+      premultipliedAlpha: false,
+      dpr: Math.min(window.devicePixelRatio || 1, 1.35),
+    })
     const gl = renderer.gl
     gl.clearColor(0, 0, 0, 0)
+    let isVisible = false
 
     let currentMouse = [0.5, 0.5]
     let targetMouse = [0.5, 0.5]
@@ -223,7 +235,11 @@ export default function SoftAurora({
 
     let animationFrameId
     const update = (time) => {
-      animationFrameId = requestAnimationFrame(update)
+      if (!isVisible) {
+        animationFrameId = undefined
+        return
+      }
+
       program.uniforms.uTime.value = time * 0.001
 
       if (enableMouseInteraction) {
@@ -237,12 +253,42 @@ export default function SoftAurora({
       }
 
       renderer.render({ scene: mesh })
+      animationFrameId = requestAnimationFrame(update)
     }
 
-    animationFrameId = requestAnimationFrame(update)
+    const start = () => {
+      if (!animationFrameId) {
+        animationFrameId = requestAnimationFrame(update)
+      }
+    }
+
+    const stop = () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = undefined
+      }
+    }
+
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting
+        if (isVisible) {
+          start()
+        } else {
+          stop()
+        }
+      },
+      {
+        threshold: 0.02,
+        rootMargin: '160px 0px 160px 0px',
+      },
+    )
+
+    visibilityObserver.observe(container)
 
     return () => {
-      cancelAnimationFrame(animationFrameId)
+      visibilityObserver.disconnect()
+      stop()
       window.removeEventListener('resize', resize)
       if (enableMouseInteraction) {
         gl.canvas.removeEventListener('mousemove', handleMouseMove)

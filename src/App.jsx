@@ -481,35 +481,6 @@ function App() {
     setActiveProject(null)
   }
 
-  const loadProjectPreview = (video) => {
-    if (!video?.dataset.src || video.src) {
-      return
-    }
-
-    video.src = video.dataset.src
-    video.load()
-  }
-
-  const playProjectPreview = (video) => {
-    loadProjectPreview(video)
-    video?.classList.add('is-preview-active')
-    video?.play().catch(() => {})
-  }
-
-  const pauseProjectPreview = (video) => {
-    video?.pause()
-  }
-
-  const handleProjectPreviewEnter = (event) => {
-    const video = event.currentTarget.querySelector('.project-video')
-    playProjectPreview(video)
-  }
-
-  const handleProjectPreviewLeave = (event) => {
-    const video = event.currentTarget.querySelector('.project-video')
-    pauseProjectPreview(video)
-  }
-
   const toggleVideoPlayback = (video) => {
     if (video.paused) {
       video.play().catch(() => {})
@@ -620,34 +591,6 @@ function App() {
 
     return () => {
       cancelAnimationFrame(observeFrame)
-      observer.disconnect()
-    }
-  }, [])
-
-  useEffect(() => {
-    const projectVideos = Array.from(document.querySelectorAll('.project-video'))
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const video = entry.target
-
-          if (entry.isIntersecting) {
-            loadProjectPreview(video)
-          } else {
-            pauseProjectPreview(video)
-          }
-        })
-      },
-      {
-        threshold: 0.28,
-        rootMargin: '260px 0px 260px 0px',
-      },
-    )
-
-    projectVideos.forEach((video) => observer.observe(video))
-
-    return () => {
       observer.disconnect()
     }
   }, [])
@@ -815,7 +758,6 @@ function App() {
                     playsInline
                     preload="none"
                     poster={project.poster}
-                    data-src={project.preview || project.video}
                   />
                 )}
                 <button
