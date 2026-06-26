@@ -1,12 +1,17 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import BorderGlow from './BorderGlow'
 import GradientText from './GradientText'
-import SoftAurora from './SoftAurora'
 
 const assetPath = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`
-const videoCdnBase = import.meta.env.VITE_VIDEO_CDN_BASE?.replace(/\/+$/, '') ?? ''
+const defaultVideoCdnBase = 'https://mzl-portfolio-video.oss-cn-chengdu.aliyuncs.com'
+const videoCdnBase = (import.meta.env.VITE_VIDEO_CDN_BASE || defaultVideoCdnBase).replace(/\/+$/, '')
 const videoPath = (path) => (videoCdnBase ? `${videoCdnBase}/${path.replace(/^\/+/, '')}` : '')
 const heroHls = videoPath('/hls/hero/v720p/index.m3u8')
+const defaultQualityOptions = [
+  { value: '480', height: 480, label: '480p' },
+  { value: '720', height: 720, label: '720p' },
+  { value: '1080', height: 1080, label: '1080p' },
+]
 
 const profile = {
   name: '马哲林',
@@ -294,7 +299,11 @@ function HlsVideo({
   showFallbackMessage = false,
 }) {
   const videoRef = useRef(null)
+  const hlsRef = useRef(null)
   const [loadError, setLoadError] = useState(false)
+  const [qualityOptions, setQualityOptions] = useState([])
+  const [selectedQuality, setSelectedQuality] = useState('auto')
+  const [qualityOpen, setQualityOpen] = useState(false)
 
   useEffect(() => {
     const video = videoRef.current
@@ -305,7 +314,11 @@ function HlsVideo({
 
     let hlsInstance
     let disposed = false
+    hlsRef.current = null
     setLoadError(false)
+    setQualityOptions([])
+    setSelectedQuality('auto')
+    setQualityOpen(false)
     const playVideo = () => {
       if (autoPlay) {
         video.play().catch(() => {})
@@ -332,6 +345,27 @@ function HlsVideo({
             capLevelToPlayerSize: true,
             startLevel: -1,
           })
+          hlsRef.current = hlsInstance
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (disposed) {
+              return
+            }
+
+            const levels = hlsInstance.levels
+              .map((level, index) => ({
+                index,
+                value: String(level.height || index),
+                height: level.height,
+                bitrate: level.bitrate,
+                label: level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)}K`,
+              }))
+              .filter((level) => level.height || level.bitrate)
+              .sort((a, b) => a.height - b.height || a.bitrate - b.bitrate)
+
+            setQualityOptions(
+              levels.filter((level, index, list) => index === list.findIndex((item) => item.label === level.label)),
+            )
+          })
           hlsInstance.loadSource(hlsSrc)
           hlsInstance.attachMedia(video)
           playVideo()
@@ -350,12 +384,48 @@ function HlsVideo({
 
     return () => {
       disposed = true
+      hlsRef.current = null
       hlsInstance?.destroy()
       video.pause()
       video.removeAttribute('src')
       video.load()
     }
   }, [autoPlay, fallback, hlsSrc])
+
+  const handleQualityChange = (event) => {
+    const value = event.target.value
+    const hlsInstance = hlsRef.current
+    const video = videoRef.current
+
+    setSelectedQuality(value)
+    setQualityOpen(false)
+    event.currentTarget.blur()
+
+    if (hlsInstance) {
+      if (value === 'auto') {
+        hlsInstance.currentLevel = -1
+        return
+      }
+
+      const targetLevel = hlsInstance.levels.findIndex((level) => String(level.height) === value)
+      hlsInstance.currentLevel = targetLevel >= 0 ? targetLevel : Number(value)
+      return
+    }
+
+    if (!video || !hlsSrc) {
+      return
+    }
+
+    if (value === 'auto') {
+      video.src = hlsSrc
+    } else {
+      video.src = hlsSrc.replace(/master\.m3u8$/, `v${value}p/index.m3u8`)
+    }
+
+    video.play().catch(() => {})
+  }
+
+  const visibleQualityOptions = qualityOptions.length > 1 ? qualityOptions : defaultQualityOptions
 
   return (
     <>
@@ -378,6 +448,24 @@ function HlsVideo({
           视频加载失败，打开备用 MP4
         </a>
       )}
+      {controls && hlsSrc && (
+        <label
+          className={`video-quality-control ${qualityOpen ? 'is-open' : ''}`}
+          onMouseEnter={() => setQualityOpen(true)}
+          onMouseLeave={() => setQualityOpen(false)}
+          onFocus={() => setQualityOpen(true)}
+        >
+          <span>清晰度</span>
+          <select value={selectedQuality} onChange={handleQualityChange} aria-label="选择视频清晰度">
+            <option value="auto">自动</option>
+            {visibleQualityOptions.map((level) => (
+              <option key={`${level.value}-${level.label}`} value={level.value}>
+                {level.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
     </>
   )
 }
@@ -389,7 +477,7 @@ function trapDialogFocus(event, container) {
   }
 
   const focusable = Array.from(
-    container.querySelectorAll('a[href], button:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])'),
+    container.querySelectorAll('a[href], button:not([disabled]), select:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])'),
   ).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true')
 
   if (!focusable.length) {
@@ -423,17 +511,19 @@ function ProjectPlayer({ project, onClose, onVideoClick, onVideoDoubleClick }) {
         <button ref={closeRef} className="project-player-close" type="button" aria-label="Close video player" onClick={onClose}>
           ×
         </button>
-        <HlsVideo
-          className="project-player-video"
-          hls={project.hls}
-          fallback={project.video}
-          poster={project.poster}
-          controls
-          autoPlay
-          onClick={onVideoClick}
-          onDoubleClick={onVideoDoubleClick}
-          showFallbackMessage
-        />
+        <div className="project-player-stage">
+          <HlsVideo
+            className="project-player-video"
+            hls={project.hls}
+            fallback={project.video}
+            poster={project.poster}
+            controls
+            autoPlay
+            onClick={onVideoClick}
+            onDoubleClick={onVideoDoubleClick}
+            showFallbackMessage
+          />
+        </div>
         <div className="project-player-meta">
           <span>{project.label}</span>
           <strong>{project.title}</strong>
@@ -850,24 +940,7 @@ function App() {
 
       <section className="contact-finale" id="contact">
         <OrnamentLayer variant="contact" />
-        <div className="contact-bg" aria-hidden="true">
-          <SoftAurora
-            speed={0.72}
-            scale={1.65}
-            brightness={1.55}
-            color1="#f7f7f7"
-            color2="#00d8ff"
-            noiseFrequency={2.15}
-            noiseAmplitude={1.75}
-            bandHeight={0.38}
-            bandSpread={1.22}
-            octaveDecay={0.1}
-            layerOffset={0.42}
-            colorSpeed={1.85}
-            enableMouseInteraction
-            mouseInfluence={0.32}
-          />
-        </div>
+        <div className="contact-bg" aria-hidden="true" />
         <div className="contact-title">
           <p>个人信息</p>
         </div>
